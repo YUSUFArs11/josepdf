@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6fb">
+  <meta name="description" content="Sabit rapor şablonundaki tablo tarihi ve sağ üst tarih-saat alanını yerel olarak düzenleyen küçük PDF aracı.">
+  <title>Tarih PDF · Rapor Tarihi Düzenleyici</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #68738a;
+      --line: #e2e7f0;
+      --panel: #ffffff;
+      --bg: #f4f6fb;
+      --blue: #315de8;
+      --blue-dark: #2448c2;
+      --blue-soft: #edf2ff;
+      --green: #15804a;
+      --green-soft: #e9f8ef;
+      --red: #bd3030;
+      --red-soft: #fff0f0;
+      --shadow: 0 16px 50px rgba(24, 39, 75, .07);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); min-height: 100vh; }
+    button, input { font: inherit; }
+    button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    button:disabled { cursor: not-allowed; opacity: .48; }
+    input, button { -webkit-appearance: none; }
+    .shell { width: min(1120px, calc(100% - 36px)); margin: 0 auto; padding: 32px 0 48px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 36px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 760; letter-spacing: -.035em; font-size: 19px; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; background: var(--blue); color: #fff; border-radius: 13px; box-shadow: 0 8px 20px rgba(49,93,232,.22); }
+    .privacy-pill { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 9px 13px; color: #43516a; font-size: 12px; font-weight: 650; white-space: nowrap; }
+    .privacy-dot { width: 7px; height: 7px; background: #18a05d; border-radius: 50%; box-shadow: 0 0 0 3px #e4f8ec; }
+    .hero { max-width: 780px; margin-bottom: 26px; }
+    .eyebrow { color: var(--blue); text-transform: uppercase; font-size: 11px; font-weight: 800; letter-spacing: .14em; margin: 0 0 12px; }
+    h1 { font-size: clamp(31px, 4.5vw, 48px); line-height: 1.08; letter-spacing: -.052em; margin: 0 0 15px; font-weight: 790; }
+    .hero-copy { color: var(--muted); font-size: 16px; line-height: 1.7; margin: 0; max-width: 680px; }
+    .workspace { display: grid; grid-template-columns: minmax(0, .95fr) minmax(360px, 1.05fr); gap: 20px; align-items: start; }
+    .left-column { display: grid; gap: 18px; }
+    .card { background: var(--panel); border: 1px solid #e6eaf2; border-radius: 20px; box-shadow: var(--shadow); overflow: hidden; }
+    .card-head { padding: 22px 24px 0; display: flex; align-items: flex-start; gap: 12px; }
+    .step-no { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue); border-radius: 10px; font-size: 13px; font-weight: 800; }
+    .card-title { font-size: 16px; font-weight: 760; letter-spacing: -.02em; margin: 2px 0 5px; }
+    .card-subtitle { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 0; }
+    .card-body { padding: 19px 24px 24px; }
+    .dropzone { border: 1.5px dashed #c7d1e4; background: #fafbff; border-radius: 15px; padding: 26px 16px; text-align: center; transition: border-color .15s ease, background .15s ease, transform .15s ease; }
+    .dropzone.dragover { border-color: var(--blue); background: #f1f5ff; transform: translateY(-1px); }
+    .upload-icon { margin: 0 auto 12px; display: grid; place-items: center; width: 48px; height: 48px; color: var(--blue); background: #eaf0ff; border-radius: 15px; }
+    .drop-title { font-size: 14px; font-weight: 750; margin-bottom: 5px; }
+    .drop-copy { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 0 0 16px; }
+    .btn { border: 0; border-radius: 11px; padding: 12px 16px; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; font-weight: 750; transition: background .15s ease, transform .15s ease; }
+    .btn:not(:disabled):active { transform: translateY(1px); }
+    .btn-primary { background: var(--blue); color: #fff; box-shadow: 0 7px 16px rgba(49,93,232,.18); }
+    .btn-primary:not(:disabled):hover { background: var(--blue-dark); }
+    .btn-secondary { background: #eef2f8; color: #2e3b54; }
+    .btn-secondary:not(:disabled):hover { background: #e5eaf3; }
+    .file-info { margin-top: 13px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; gap: 11px; align-items: center; min-width: 0; }
+    .file-icon { display: grid; place-items: center; width: 37px; height: 37px; border-radius: 10px; background: #fff0f0; color: #c13a3a; flex: 0 0 auto; }
+    .file-name { font-size: 12px; font-weight: 720; overflow-wrap: anywhere; }
+    .file-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .fields { display: grid; gap: 18px; }
+    .field label { display: block; font-size: 12px; font-weight: 750; margin-bottom: 8px; }
+    .field-hint { color: var(--muted); font-size: 11px; margin-top: 7px; line-height: 1.5; }
+    .input-wrap { position: relative; }
+    .input-wrap svg { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); color: #8290a8; pointer-events: none; }
+    .field input { width: 100%; border: 1px solid #d8dfeb; background: #fff; color: var(--ink); border-radius: 11px; padding: 13px 44px 13px 13px; outline: none; transition: border-color .15s, box-shadow .15s; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .field input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(49,93,232,.12); }
+    .field input.invalid { border-color: #df5656; box-shadow: 0 0 0 3px rgba(223,86,86,.09); }
+    .field input::placeholder { color: #a1aabd; }
+    .format-chip { display: inline-block; background: #f0f3f8; color: #596780; border-radius: 5px; font-size: 10px; padding: 3px 6px; margin-left: 6px; font-weight: 650; }
+    .action-row { display: flex; gap: 10px; align-items: center; margin-top: 22px; }
+    .action-row .btn { flex: 1; min-height: 45px; }
+    .note { display: flex; gap: 10px; align-items: flex-start; color: #65718a; background: #f7f9fc; border: 1px solid #edf0f5; border-radius: 12px; padding: 12px; margin-top: 17px; font-size: 11px; line-height: 1.55; }
+    .note svg { flex: 0 0 auto; color: #6c7b95; margin-top: 1px; }
+    .preview-card { min-height: 590px; }
+    .preview-head { padding: 22px 24px 16px; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; border-bottom: 1px solid #edf0f5; }
+    .preview-heading { font-size: 16px; font-weight: 760; margin: 2px 0 5px; letter-spacing: -.02em; }
+    .preview-kicker { color: var(--muted); font-size: 12px; margin: 0; }
+    .preview-status { border-radius: 999px; color: #69758c; background: #f1f3f7; font-size: 10px; padding: 6px 9px; font-weight: 800; white-space: nowrap; }
+    .preview-status.ready { background: var(--green-soft); color: var(--green); }
+    .preview-area { padding: 19px; background: #f8f9fc; min-height: 495px; }
+    .preview-empty { min-height: 455px; border: 1px dashed #d5dce8; border-radius: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; background: #fff; color: #8b96aa; }
+    .preview-empty svg { margin-bottom: 16px; color: #a8b3c6; }
+    .preview-empty strong { color: #66728a; font-size: 13px; margin-bottom: 7px; }
+    .preview-empty span { max-width: 235px; font-size: 11px; line-height: 1.6; }
+    .preview-image-wrap { text-align: center; }
+    #previewImage { display: block; width: auto; max-width: 100%; max-height: 700px; height: auto; margin: 0 auto; box-shadow: 0 6px 25px rgba(21,32,55,.13); background: white; }
+    .preview-caption { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #7b8599; font-size: 10px; margin-top: 12px; }
+    .status { display: none; margin-top: 13px; padding: 11px 12px; border-radius: 11px; font-size: 12px; line-height: 1.5; }
+    .status.show { display: block; }
+    .status.info { background: #edf3ff; color: #294fbd; }
+    .status.success { background: var(--green-soft); color: #166b41; }
+    .status.error { background: var(--red-soft); color: #a32a2a; }
+    .status.warning { background: #fff7e5; color: #82580c; }
+    .download-panel { margin-top: 14px; border-radius: 13px; background: #f0fbf4; border: 1px solid #d9f1e1; padding: 14px; display: none; }
+    .download-panel.show { display: block; }
+    .download-top { display: flex; gap: 9px; align-items: center; color: #176b40; font-weight: 770; font-size: 12px; margin-bottom: 10px; }
+    .download-panel .btn { width: 100%; }
+    .footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-top: 24px; padding: 0 3px; color: #8b95a8; font-size: 11px; line-height: 1.6; }
+    .footer strong { color: #65718a; font-weight: 730; }
+    .hidden { display: none !important; }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 860px) {
+      .workspace { grid-template-columns: 1fr; }
+      .preview-card { min-height: auto; }
+      .preview-empty { min-height: 300px; }
+      .preview-area { min-height: 340px; }
+    }
+    @media (max-width: 540px) {
+      .shell { width: min(100% - 22px, 1120px); padding-top: 14px; padding-bottom: 26px; }
+      .topbar { margin-bottom: 23px; align-items: center; gap: 8px; }
+      .brand { font-size: 16px; gap: 8px; }
+      .brand-mark { width: 37px; height: 37px; border-radius: 11px; }
+      .privacy-pill { font-size: 10px; padding: 8px 9px; white-space: normal; text-align: center; gap: 6px; }
+      .hero { margin-bottom: 20px; }
+      h1 { font-size: clamp(30px, 8vw, 38px); }
+      .hero-copy { font-size: 14px; line-height: 1.6; }
+      .workspace { gap: 14px; }
+      .left-column { gap: 14px; }
+      .card { border-radius: 16px; }
+      .card-head { padding: 16px 15px 0; }
+      .card-body { padding: 15px; }
+      .dropzone { padding: 22px 12px; }
+      .field input { min-height: 52px; padding-top: 14px; padding-bottom: 14px; font-size: 16px; }
+      .fields { gap: 17px; }
+      .action-row { margin-top: 18px; }
+      .action-row .btn { min-height: 54px; width: 100%; font-size: 14px; }
+      .download-panel .btn { min-height: 54px; font-size: 14px; }
+      .preview-card { margin-top: 0; }
+      .preview-head { padding: 16px 15px 13px; }
+      .preview-area { padding: 10px; }
+      .preview-empty { min-height: 240px; padding: 22px 16px; }
+      #previewImage { max-height: 560px; }
+      .footer { flex-direction: column; align-items: flex-start; gap: 5px; margin-top: 18px; }
+    }
+    @media (max-width: 360px) {
+      .brand { font-size: 14px; }
+      .privacy-pill { max-width: 145px; font-size: 9px; }
+      .step-no { width: 28px; height: 28px; }
+      .format-chip { display: inline-block; margin: 5px 0 0; }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
+  <script defer>
+    (() => {
+      'use strict';
+
+      const $ = (id) => document.getElementById(id);
+      const state = {
+        file: null,
+        pdf: null,
+        originalPreview: '',
+        outputBytes: null,
+        outputName: '',
+        targetsByPage: [],
+        rowCount: 0,
+        busy: false,
+        generation: 0,
+      };
+
+      const DATE_RE = /\b\d{2}\.\d{2}\.\d{4}\b/g;
+      const A4_RATIO = 595 / 842;
+      const MAX_FILE_BYTES = 40 * 1024 * 1024;
+      const MAX_PAGES = 20;
+      // Mobile browsers have tighter memory budgets; 240 DPI stays crisp while reducing canvas memory.
+      const OUTPUT_DPI = window.matchMedia('(max-width: 700px)').matches ? 240 : 300;
+      const OUTPUT_SCALE = OUTPUT_DPI / 72;
+
+      function setStatus(message, type = 'info') {
+        const box = $('statusBox');
+        box.textContent = message;
+        box.className = `status show ${type}`;
+      }
+
+      function hideStatus() {
+        $('statusBox').className = 'status';
+        $('statusBox').textContent = '';
+      }
+
+      function formatBytes(bytes) {
+        if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+      }
+
+      function cleanBaseName(name) {
+        return (name || 'rapor')
+          .replace(/\.pdf$/i, '')
+          .replace(/[\\/:*?"<>|]+/g, '_')
+          .replace(/\s+/g, '_')
+          .slice(0, 100) || 'rapor';
+      }
+
+
+      function maskDateInput(raw) {
+        const digits = raw.replace(/\D/g, '').slice(0, 8);
+        if (digits.length <= 2) return digits;
+        if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+        return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
+      }
+
+      function maskDateTimeInput(raw) {
+        const digits = raw.replace(/\D/g, '').slice(0, 14);
+        let value = digits.slice(0, 2);
+        if (digits.length > 2) value += `.${digits.slice(2, 4)}`;
+        if (digits.length > 4) value += `.${digits.slice(4, 8)}`;
+        if (digits.length > 8) value += ` ${digits.slice(8, 10)}`;
+        if (digits.length > 10) value += `:${digits.slice(10, 12)}`;
+        if (digits.length > 12) value += `:${digits.slice(12, 14)}`;
+        return value;
+      }
+
+      function isRealDate(value) {
+        const match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(value.trim());
+        if (!match) return false;
+        const day = Number(match[1]);
+        const month = Number(match[2]);
+        const year = Number(match[3]);
+        const d = new Date(Date.UTC(year, month - 1, day));
+        return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
+      }
+
+      function isRealDateTime(value) {
+        const match = /^(\d{2}\.\d{2}\.\d{4}) ([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/.exec(value.trim());
+        return Boolean(match && isRealDate(match[1]));
+      }
+
+      function getPageSize(page) {
+        const viewport = page.getViewport({ scale: 1 });
+        return { width: viewport.width, height: viewport.height, ratio: viewport.width / viewport.height };
+      }
+
+      function checkPageTemplate(page, pageNumber) {
+        const size = getPageSize(page);
+        if (page.rotate !== 0) {
+          throw new Error(`${pageNumber}. sayfa döndürülmüş görünüyor. Önce PDF'yi dik konuma getirip tekrar deneyin.`);
+        }
+        if (size.width < 500 || size.width > 650 || size.height < 700 || size.height > 900 || Math.abs(size.ratio - A4_RATIO) > 0.035) {
+          throw new Error(`${pageNumber}. sayfa beklenen A4 rapor boyutunda değil. Bu sürüm, gönderdiğin rapor şablonu için ayarlandı.`);
+        }
+      }
+
+      /*
+       * Locate text dates in the report's date column. The top-right timestamp in this
+       * particular template is part of a raster image, so it is handled at fixed coordinates.
+       * x/y are canvas pixel coordinates for the provided viewport.
+       */
+      function findDateTargets(textContent, viewport) {
+        const targets = [];
+        const seen = new Set();
+        for (const item of textContent.items) {
+          if (!item.str) continue;
+          const matches = [...item.str.matchAll(DATE_RE)];
+          if (!matches.length) continue;
+
+          const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+          const fontHeight = Math.hypot(tx[2], tx[3]);
+          const fullWidth = item.width * viewport.scale;
+          const charWidth = fullWidth / Math.max(1, item.str.length);
+          if (!Number.isFinite(fontHeight) || fontHeight <= 0 || !Number.isFinite(charWidth) || charWidth <= 0) continue;
+
+          for (const match of matches) {
+            const x = tx[4] + charWidth * match.index;
+            const baseline = tx[5];
+            const xPt = x / viewport.scale;
+            const yPt = baseline / viewport.scale;
+            // The known report's table date column is around x=164 pt on an A4 page.
+            // The broad y range allows reports with more or fewer table rows.
+            if (xPt < 140 || xPt > 195 || yPt < 70 || yPt > 780) continue;
+            if (match[0].length !== 10) continue;
+            const key = `${Math.round(x / 2)}:${Math.round(baseline / 2)}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            // Store coordinates in PDF points (not preview-canvas pixels), so the same
+            // target can be used at both thumbnail scale and 300-DPI output scale.
+            targets.push({
+              xPt: x / viewport.scale,
+              baselinePt: baseline / viewport.scale,
+              fontHeightPt: fontHeight / viewport.scale,
+              widthPt: (charWidth * match[0].length) / viewport.scale,
+              original: match[0],
+            });
+          }
+        }
+        return targets.sort((a, b) => a.baselinePt - b.baselinePt);
+      }
+
+      function drawReplacementDates(ctx, viewport, targets, newDate) {
+        const scale = viewport.scale;
+        for (const target of targets) {
+          const x = target.xPt * scale;
+          const baseline = target.baselinePt * scale;
+          const fontHeight = target.fontHeightPt * scale;
+          const width = target.widthPt * scale;
+          const padX = 0.8 * scale;
+          const top = baseline - fontHeight * 1.05;
+          const height = fontHeight * 1.1;
+          // Remove original glyphs including antialiasing, but stay inside the date column.
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x - padX, top, width + padX * 2, height);
+
+          ctx.fillStyle = '#202020';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'alphabetic';
+          ctx.font = `${fontHeight}px "Courier New", "Liberation Mono", monospace`;
+          ctx.fillText(newDate, x, baseline);
+        }
+      }
+
+      function drawHeaderTimestamp(ctx, viewport, timestamp) {
+        const s = viewport.scale;
+        // Fixed white timestamp panel in the supplied report template (PDF points, top-left origin).
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(436 * s, 55.5 * s, 132 * s, 17.5 * s);
+        ctx.fillStyle = '#090909';
+        ctx.font = `700 ${10.3 * s}px Arial, Helvetica, sans-serif`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(timestamp, 562 * s, 69 * s);
+        ctx.textAlign = 'left';
+      }
+
+      async function renderPageToCanvas(page, scale, targets, tableDate, timestamp) {
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) throw new Error('Tarayıcı görüntü alanı oluşturamadı. Başka bir tarayıcıda deneyin.');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport, background: '#ffffff' }).promise;
+        drawReplacementDates(ctx, viewport, targets, tableDate);
+        drawHeaderTimestamp(ctx, viewport, timestamp);
+        return { canvas, viewport };
+      }
+
+      function makeThumbnail(canvas, viewport) {
+        const targetWidth = 460;
+        const ratio = Math.min(1, targetWidth / viewport.width);
+        const thumb = document.createElement('canvas');
+        thumb.width = Math.max(1, Math.round(viewport.width * ratio));
+        thumb.height = Math.max(1, Math.round(viewport.height * ratio));
+        const ctx = thumb.getContext('2d');
+        ctx.drawImage(canvas, 0, 0, thumb.width, thumb.height);
+        return thumb.toDataURL('image/png');
+      }
+
+      function canvasToPngBytes(canvas) {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob(async (blob) => {
+            if (!blob) return reject(new Error('PDF sayfası görüntüye dönüştürülemedi.'));
+            try {
+              resolve(new Uint8Array(await blob.arrayBuffer()));
+            } catch (error) {
+              reject(error);
+            }
+          }, 'image/png');
+        });
+      }
+
+      function showPreview(dataUrl, isReady) {
+        $('previewEmpty').classList.add('hidden');
+        $('previewImage').classList.remove('hidden');
+        $('previewImage').src = dataUrl;
+        $('previewStatus').textContent = isReady ? 'Düzenlendi' : 'Önizleme';
+        $('previewStatus').classList.toggle('ready', isReady);
+        $('previewCaptionLeft').textContent = isReady ? 'Yeni PDF görünümü' : 'Kaynak dosya görünümü';
+        $('previewCaptionRight').textContent = isReady ? 'Tarih alanları güncellendi' : 'Henüz değişiklik yapılmadı';
+        $('previewCaption').classList.remove('hidden');
+      }
+
+      function showEmptyPreview() {
+        $('previewImage').classList.add('hidden');
+        $('previewImage').removeAttribute('src');
+        $('previewEmpty').classList.remove('hidden');
+        $('previewStatus').textContent = 'Dosya bekleniyor';
+        $('previewStatus').classList.remove('ready');
+        $('previewCaption').classList.add('hidden');
+      }
+
+      function updateButtons() {
+        const valid = state.pdf && state.rowCount > 0 && isRealDate($('tableDate').value.trim()) && isRealDateTime($('headerDateTime').value.trim()) && !state.busy;
+        $('processButton').disabled = !valid;
+        $('chooseFile').disabled = state.busy;
+      }
+
+      function clearOutput() {
+        state.outputBytes = null;
+        state.outputName = '';
+        $('downloadPanel').classList.remove('show');
+        $('downloadButton').disabled = true;
+        if (state.originalPreview) showPreview(state.originalPreview, false);
+        updateButtons();
+      }
+
+      async function readPdf(file, generation) {
+        if (!file) return;
+        if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') {
+          throw new Error('Lütfen PDF formatında bir dosya seç.');
+        }
+        if (file.size > MAX_FILE_BYTES) {
+          throw new Error(`Dosya ${formatBytes(file.size)}. Bu sürüm en fazla 40 MB dosya kabul ediyor.`);
+        }
+        if (file.size === 0) throw new Error('Seçtiğin dosya boş görünüyor.');
+        if (!window.pdfjsLib || !window.PDFLib) {
+          throw new Error('PDF kütüphaneleri yüklenemedi. İnternet bağlantını kontrol edip sayfayı yenile.');
+        }
+
+        if (state.pdf) {
+          try { await state.pdf.destroy(); } catch (_) { /* no-op */ }
+          state.pdf = null;
+        }
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+        if (generation !== state.generation) {
+          await pdf.destroy();
+          return;
+        }
+        if (pdf.numPages > MAX_PAGES) {
+          await pdf.destroy();
+          throw new Error(`Dosyada ${pdf.numPages} sayfa var. Bu sürüm güvenli işleme için en fazla ${MAX_PAGES} sayfayı destekliyor.`);
+        }
+
+        const targetsByPage = [];
+        let totalRows = 0;
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          checkPageTemplate(page, i);
+          const viewport = page.getViewport({ scale: 1 });
+          const textContent = await page.getTextContent();
+          const targets = findDateTargets(textContent, viewport);
+          targetsByPage.push(targets);
+          totalRows += targets.length;
+        }
+        if (generation !== state.generation) {
+          await pdf.destroy();
+          return;
+        }
+        if (totalRows === 0) {
+          await pdf.destroy();
+          throw new Error('Tablodaki tarih sütununu bulamadım. PDF, gönderdiğin rapor şablonundan farklı olabilir; hiçbir değişiklik yapılmadı.');
+        }
+
+        state.file = file;
+        state.pdf = pdf;
+        state.targetsByPage = targetsByPage;
+        state.rowCount = totalRows;
+        state.outputBytes = null;
+        state.outputName = '';
+        $('downloadPanel').classList.remove('show');
+        $('downloadButton').disabled = true;
+        $('fileInfo').classList.remove('hidden');
+        $('fileName').textContent = file.name;
+        $('fileMeta').textContent = `${formatBytes(file.size)} · ${pdf.numPages} sayfa · ${totalRows} tablo tarihi bulundu`;
+        $('rowCountPill').textContent = `${totalRows} kayıt bulundu`;
+        $('rowCountPill').classList.remove('hidden');
+
+        const firstPage = await pdf.getPage(1);
+        const baseViewport = firstPage.getViewport({ scale: 1 });
+        const scale = Math.min(0.82, 460 / baseViewport.width);
+        const previewViewport = firstPage.getViewport({ scale });
+        const previewCanvas = document.createElement('canvas');
+        previewCanvas.width = Math.ceil(previewViewport.width);
+        previewCanvas.height = Math.ceil(previewViewport.height);
+        const previewCtx = previewCanvas.getContext('2d', { alpha: false });
+        previewCtx.fillStyle = '#ffffff';
+        previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+        await firstPage.render({ canvasContext: previewCtx, viewport: previewViewport, background: '#ffffff' }).promise;
+        if (generation !== state.generation) return;
+        state.originalPreview = previewCanvas.toDataURL('image/png');
+        showPreview(state.originalPreview, false);
+        hideStatus();
+        setStatus(`PDF hazır. ${totalRows} adet tablo tarihi tespit edildi. İki yeni tarihi girip “PDF'yi oluştur” düğmesine bas.`, 'success');
+        updateButtons();
+      }
+
+      async function processPdf() {
+        if (state.busy || !state.pdf) return;
+        const tableDate = $('tableDate').value.trim();
+        const timestamp = $('headerDateTime').value.trim();
+        $('tableDate').classList.toggle('invalid', !isRealDate(tableDate));
+        $('headerDateTime').classList.toggle('invalid', !isRealDateTime(timestamp));
+        if (!isRealDate(tableDate) || !isRealDateTime(timestamp)) {
+          setStatus('Tarihleri istenen biçimde gir: tablo için GG.AA.YYYY, sağ üst için GG.AA.YYYY HH:MM:SS. Saat 00:00 ile 23:59:59 arasında olmalı.', 'error');
+          updateButtons();
+          return;
+        }
+        if (!window.PDFLib) {
+          setStatus('PDF oluşturma kütüphanesi yüklenemedi. İnternet bağlantını kontrol edip sayfayı yenile.', 'error');
+          return;
+        }
+
+        state.busy = true;
+        state.outputBytes = null;
+        $('downloadPanel').classList.remove('show');
+        $('processButton').innerHTML = '<span class="spinner" aria-hidden="true"></span> PDF hazırlanıyor…';
+        $('processButton').disabled = true;
+        $('chooseFile').disabled = true;
+        setStatus(`PDF sayfaları ${OUTPUT_DPI} DPI çözünürlükte hazırlanıyor. PDF dosyan sunucuya yüklenmiyor.`, 'info');
+
+        try {
+          const outDoc = await PDFLib.PDFDocument.create();
+          outDoc.setTitle(`${cleanBaseName(state.file.name)} - tarih düzenlenmiş kopya`);
+          outDoc.setSubject('Rapor tarih alanları düzenlenmiş kopya');
+          outDoc.setCreator('Tarih PDF - yerel tarayıcı aracı');
+          let firstOutputPreview = '';
+          let appliedCount = 0;
+
+          for (let i = 1; i <= state.pdf.numPages; i++) {
+            setStatus(`${i}/${state.pdf.numPages}. sayfa işleniyor…`, 'info');
+            const page = await state.pdf.getPage(i);
+            const { canvas, viewport } = await renderPageToCanvas(page, OUTPUT_SCALE, state.targetsByPage[i - 1], tableDate, timestamp);
+            appliedCount += state.targetsByPage[i - 1].length;
+            if (i === 1) firstOutputPreview = makeThumbnail(canvas, viewport);
+
+            const pngBytes = await canvasToPngBytes(canvas);
+            const embeddedImage = await outDoc.embedPng(pngBytes);
+            const outputPageSize = page.getViewport({ scale: 1 });
+            const outPage = outDoc.addPage([outputPageSize.width, outputPageSize.height]);
+            outPage.drawImage(embeddedImage, {
+              x: 0,
+              y: 0,
+              width: outputPageSize.width,
+              height: outputPageSize.height,
+            });
+            // Release large 300-DPI canvases as soon as each page has been embedded.
+            canvas.width = 1;
+            canvas.height = 1;
+          }
+
+          if (appliedCount === 0) throw new Error('Düzenlenecek tablo tarihi kalmadı. Kaynak dosyayı kontrol et.');
+          const bytes = await outDoc.save({ useObjectStreams: true });
+          state.outputBytes = bytes;
+          state.outputName = `${cleanBaseName(state.file.name)}_tarih_duzenlenmis.pdf`;
+          showPreview(firstOutputPreview, true);
+          $('downloadFileName').textContent = state.outputName;
+          $('downloadPanel').classList.add('show');
+          $('downloadButton').disabled = false;
+          $('processButton').innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14m-7-7 7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Yeniden oluştur';
+          setStatus(`Tamamlandı. ${appliedCount} tablo tarihi ve her sayfanın sağ üst tarih-saat alanı güncellendi. Önizlemeyi kontrol edip PDF'yi indirebilirsin.`, 'success');
+        } catch (error) {
+          console.error(error);
+          setStatus(error instanceof Error ? error.message : 'PDF oluşturulamadı. Farklı bir PDF ile tekrar dene.', 'error');
+        } finally {
+          state.busy = false;
+          $('processButton').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v3h14v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> PDF\'yi oluştur';
+          updateButtons();
+        }
+      }
+
+      function downloadPdf() {
+        if (!state.outputBytes || !state.outputName) return;
+        const blob = new Blob([state.outputBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = state.outputName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+
+      async function handleFile(file) {
+        const generation = ++state.generation;
+        clearOutput();
+        state.file = null;
+        state.rowCount = 0;
+        state.targetsByPage = [];
+        state.originalPreview = '';
+        $('fileInfo').classList.add('hidden');
+        $('rowCountPill').classList.add('hidden');
+        showEmptyPreview();
+        if (state.pdf) {
+          try { await state.pdf.destroy(); } catch (_) { /* no-op */ }
+          state.pdf = null;
+        }
+        updateButtons();
+        setStatus('PDF okunuyor ve rapor şablonu kontrol ediliyor…', 'info');
+        try {
+          await readPdf(file, generation);
+        } catch (error) {
+          console.error(error);
+          if (generation === state.generation) {
+            setStatus(error instanceof Error ? error.message : 'PDF okunamadı. Dosyanın sağlam olduğundan emin ol.', 'error');
+            state.file = null;
+            state.rowCount = 0;
+            state.targetsByPage = [];
+            state.originalPreview = '';
+            updateButtons();
+          }
+        }
+      }
+
+      function init() {
+        if (window.pdfjsLib) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        $('chooseFile').addEventListener('click', () => $('fileInput').click());
+        $('fileInput').addEventListener('change', (event) => {
+          const file = event.target.files && event.target.files[0];
+          event.target.value = '';
+          if (file) handleFile(file);
+        });
+        const dropzone = $('dropzone');
+        dropzone.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          if (!state.busy) dropzone.classList.add('dragover');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (event) => {
+          event.preventDefault();
+          dropzone.classList.remove('dragover');
+          if (state.busy) return;
+          const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+          if (file) handleFile(file);
+        });
+        $('processButton').addEventListener('click', processPdf);
+        $('downloadButton').addEventListener('click', downloadPdf);
+        $('tableDate').addEventListener('input', () => {
+          const input = $('tableDate');
+          const next = maskDateInput(input.value);
+          if (input.value !== next) input.value = next;
+          input.classList.remove('invalid');
+          if (state.outputBytes) clearOutput();
+          if (isRealDate(input.value.trim()) && isRealDateTime($('headerDateTime').value.trim())) hideStatus();
+          updateButtons();
+        });
+        $('headerDateTime').addEventListener('input', () => {
+          const input = $('headerDateTime');
+          const next = maskDateTimeInput(input.value);
+          if (input.value !== next) input.value = next;
+          input.classList.remove('invalid');
+          if (state.outputBytes) clearOutput();
+          if (isRealDate($('tableDate').value.trim()) && isRealDateTime(input.value.trim())) hideStatus();
+          updateButtons();
+        });
+        updateButtons();
+      }
+
+      window.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M8 3v4M16 3v4M4 9h16M8 13h3M8 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
+        <span>Tarih PDF</span>
+      </div>
+      <div class="privacy-pill"><span class="privacy-dot"></span> Dosyan tarayıcında işlenir</div>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">Tek işlev · Hızlı işlem</p>
+      <h1>Rapor tarihlerini<br>kolayca düzenle.</h1>
+      <p class="hero-copy">PDF'ni yükle, tablodaki yeni tarihi ve sağ üstte görünecek tarih-saat bilgisini gir. Uygulama, gönderdiğin rapor şablonundaki bu iki alanı değiştirip yeni bir PDF hazırlar.</p>
+    </section>
+
+    <section class="workspace" aria-label="PDF tarih düzenleme aracı">
+      <div class="left-column">
+        <section class="card">
+          <div class="card-head">
+            <span class="step-no">01</span>
+            <div>
+              <h2 class="card-title">PDF dosyasını ekle</h2>
+              <p class="card-subtitle">Bu rapor şablonuna ait PDF dosyanı seç.</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="dropzone" id="dropzone">
+              <div class="upload-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15.5v3A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="drop-title">PDF'ni buraya sürükle</div>
+              <p class="drop-copy">veya bilgisayarından bir dosya seç<br>PDF formatı · En fazla 40 MB · 20 sayfaya kadar</p>
+              <button class="btn btn-secondary" type="button" id="chooseFile">PDF seç</button>
+              <input class="hidden" type="file" id="fileInput" accept="application/pdf,.pdf" aria-label="PDF dosyası seç">
+            </div>
+            <div class="file-info hidden" id="fileInfo">
+              <div class="file-icon" aria-hidden="true">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M6 3.75h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.75a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 4v4h4M8 13h8M8 16h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              </div>
+              <div style="min-width:0;flex:1">
+                <div class="file-name" id="fileName">—</div>
+                <div class="file-meta" id="fileMeta">—</div>
+              </div>
+              <span class="preview-status ready hidden" id="rowCountPill">0 kayıt</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <span class="step-no">02</span>
+            <div>
+              <h2 class="card-title">Yeni tarihleri gir</h2>
+              <p class="card-subtitle">Sadece aşağıdaki iki alan hedeflenir.</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="fields">
+              <div class="field">
+                <label for="tableDate">1. kutu — Tablodaki yeni tarih <span class="format-chip">GG.AA.YYYY</span></label>
+                <div class="input-wrap">
+                  <input id="tableDate" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="15.10.2026" aria-describedby="tableHint">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M8 3v4M16 3v4M4 9h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </div>
+                <div class="field-hint" id="tableHint">Tablo satırlarındaki tarih sütunu aynı yeni tarihle değiştirilir. Saatler ve diğer sütunlar korunur.</div>
+              </div>
+              <div class="field">
+                <label for="headerDateTime">2. kutu — Sağ üst yeni tarih ve saat <span class="format-chip">GG.AA.YYYY HH:MM:SS</span></label>
+                <div class="input-wrap">
+                  <input id="headerDateTime" type="text" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="15.10.2026 05:02:39" aria-describedby="headerHint">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div class="field-hint" id="headerHint">Tarih ile saat arasında bir boşluk bırak. Saat 24 saat formatında ve saniyeli olmalı.</div>
+              </div>
+            </div>
+            <div class="action-row">
+              <button class="btn btn-primary" type="button" id="processButton" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v3h14v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                PDF'yi oluştur
+              </button>
+            </div>
+            <div class="status" id="statusBox" role="status" aria-live="polite"></div>
+            <div class="download-panel" id="downloadPanel">
+              <div class="download-top">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="m8 12 2.5 2.5L16 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                PDF hazır
+              </div>
+              <div class="file-meta" id="downloadFileName" style="margin:0 0 12px;color:#467057;overflow-wrap:anywhere">—</div>
+              <button class="btn btn-primary" type="button" id="downloadButton" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v3h14v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Düzenlenmiş PDF'yi indir
+              </button>
+            </div>
+            <div class="note">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 21 7v5c0 5-3.8 8-9 9-5.2-1-9-4-9-9V7l9-4Z" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <span>PDF dosyan bir sunucuya yüklenmez; tarayıcında işlenir. Görünümü korumak için yüksek çözünürlüklü görüntü tabanlı PDF hazırlanır. Bu yüzden metin seçme ve arama özelliği korunmayabilir. Orijinal dosyan değişmeden kalır.</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card preview-card">
+        <div class="preview-head">
+          <div>
+            <h2 class="preview-heading">Belge önizlemesi</h2>
+            <p class="preview-kicker">İşlemden önce ve sonra kontrol et.</p>
+          </div>
+          <span class="preview-status" id="previewStatus">Dosya bekleniyor</span>
+        </div>
+        <div class="preview-area">
+          <div class="preview-empty" id="previewEmpty">
+            <svg width="47" height="47" viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect x="9" y="4" width="30" height="40" rx="5" stroke="currentColor" stroke-width="1.6"/><path d="M16 16h16M16 22h16M16 28h10M16 34h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M32 4v8h7" stroke="currentColor" stroke-width="1.6"/></svg>
+            <strong>Henüz PDF yüklenmedi</strong>
+            <span>Dosyayı seçtiğinde burada sayfa önizlemesi görünecek. İşlemden sonra yeni tarihleri de kontrol edebilirsin.</span>
+          </div>
+          <div class="preview-image-wrap">
+            <img id="previewImage" class="hidden" alt="PDF sayfa önizlemesi">
+            <div class="preview-caption hidden" id="previewCaption">
+              <span id="previewCaptionLeft">Kaynak dosya görünümü</span>
+              <span id="previewCaptionRight">Henüz değişiklik yapılmadı</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <footer class="footer">
+      <span><strong>Tarih PDF</strong> · Tek şablon için tasarlanmış küçük bir araç.</span>
+      <span>Yalnızca yetkili olduğun raporlarda düzeltme amacıyla kullan.</span>
+    </footer>
+  </main>
+</body>
+</html>
